@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, User, Shield } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MessageSquare, User, Shield, AlertCircle } from "lucide-react";
 import { mockUsers } from "@/services/mockData";
+import { apiService } from "@/services/apiService";
 
 interface LoginProps {
   onLogin: (user: { id: string; name: string; role: "citizen" | "staff" }) => void;
@@ -15,34 +17,88 @@ export const Login = ({ onLogin }: LoginProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>("");
 
   const handleLogin = async (role: "citizen" | "staff") => {
     setIsLoading(true);
+    setError("");
     
-    // Simulate authentication
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const mockUser = mockUsers.find(user => user.role === role);
-    if (mockUser) {
-      onLogin({
-        id: mockUser.id,
-        name: mockUser.name,
-        role: mockUser.role
-      });
+    // Validation
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await apiService.login(email, password);
+      
+      if (response.success && response.user) {
+        onLogin({
+          id: response.user._id || response.user.id,
+          name: response.user.name,
+          role: response.user.role === "staff" ? "staff" : "citizen"
+        });
+      } else {
+        setError("Login failed. Please check your credentials.");
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || "Login failed. Please try again.");
     }
     
     setIsLoading(false);
   };
 
-  const quickLogin = (role: "citizen" | "staff") => {
-    const mockUser = mockUsers.find(user => user.role === role);
-    if (mockUser) {
-      onLogin({
-        id: mockUser.id,
-        name: mockUser.name,
-        role: mockUser.role
-      });
+  const quickLogin = async (role: "citizen" | "staff") => {
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      // Use the test user credentials created earlier
+      let email, password;
+      if (role === "citizen") {
+        email = "test@example.com";
+        password = "password123";
+      } else {
+        // For staff, try to use the same credentials but if it fails, fallback to mock
+        email = "staff@example.com";
+        password = "password123";
+      }
+      
+      const response = await apiService.login(email, password);
+      
+      if (response.success && response.user) {
+        onLogin({
+          id: response.user._id || response.user.id,
+          name: response.user.name,
+          role: response.user.role === "staff" ? "staff" : "citizen"
+        });
+      } else {
+        // Fallback to mock user for demo
+        const mockUser = mockUsers.find(user => user.role === role);
+        if (mockUser) {
+          onLogin({
+            id: mockUser.id,
+            name: mockUser.name,
+            role: mockUser.role
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Quick login error:', error);
+      // Fallback to mock user for demo
+      const mockUser = mockUsers.find(user => user.role === role);
+      if (mockUser) {
+        onLogin({
+          id: mockUser.id,
+          name: mockUser.name,
+          role: mockUser.role
+        });
+      }
     }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -83,12 +139,18 @@ export const Login = ({ onLogin }: LoginProps) => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="citizen-email">Email</Label>
                   <Input
                     id="citizen-email"
                     type="email"
-                    placeholder="your.email@example.com"
+                    placeholder="test@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -98,7 +160,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                   <Input
                     id="citizen-password"
                     type="password"
-                    placeholder="Enter your password"
+                    placeholder="password123"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -120,8 +182,9 @@ export const Login = ({ onLogin }: LoginProps) => {
                     size="sm"
                     className="w-full"
                     onClick={() => quickLogin("citizen")}
+                    disabled={isLoading}
                   >
-                    Quick Demo as Priya Sharma
+                    {isLoading ? "Signing in..." : "Quick Demo Login"}
                   </Button>
                 </div>
               </CardContent>

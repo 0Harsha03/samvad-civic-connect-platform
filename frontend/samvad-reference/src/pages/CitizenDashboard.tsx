@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Clock, 
   CheckCircle, 
@@ -18,16 +19,20 @@ import { cn } from "@/lib/utils";
 
 interface CitizenDashboardProps {
   reports: Report[];
+  communityReports?: Report[];
   userId: string;
   onNavigate: (page: string) => void;
 }
 
-export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboardProps) => {
+export const CitizenDashboard = ({ reports, communityReports = [], userId, onNavigate }: CitizenDashboardProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [filteredReports, setFilteredReports] = useState<Report[]>([]);
 
-  const userReports = reports.filter(report => report.citizenId === userId);
+  const userReports = useMemo(() => {
+    // No need to filter since /my endpoint already returns user-specific reports
+    return reports;
+  }, [reports]);
 
   useEffect(() => {
     let filtered = userReports;
@@ -91,87 +96,74 @@ export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboa
     }).format(date);
   };
 
-  return (
-    <div className="max-w-6xl mx-auto p-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">My Reports</h1>
-          <p className="text-muted-foreground">Track the status of your civic issue reports</p>
+  const renderReportsList = (reportsToShow: Report[], isMyReports = true) => (
+    <>
+      {/* Stats Cards - Only show for My Reports */}
+      {isMyReports && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-primary-light rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{userReports.length}</p>
+                  <p className="text-xs text-muted-foreground">Total Reports</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-warning-light rounded-lg flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-warning" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {userReports.filter(r => r.status === "In Progress").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground">In Progress</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-success-light rounded-lg flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {userReports.filter(r => r.status === "Resolved").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Resolved</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {userReports.filter(r => r.status === "Submitted").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <Button variant="civic" onClick={() => onNavigate("report")}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Report
-        </Button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary-light rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{userReports.length}</p>
-                <p className="text-xs text-muted-foreground">Total Reports</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-warning-light rounded-lg flex items-center justify-center">
-                <Clock className="h-4 w-4 text-warning" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {userReports.filter(r => r.status === "In Progress").length}
-                </p>
-                <p className="text-xs text-muted-foreground">In Progress</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-success-light rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-4 w-4 text-success" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {userReports.filter(r => r.status === "Resolved").length}
-                </p>
-                <p className="text-xs text-muted-foreground">Resolved</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {userReports.filter(r => r.status === "Submitted").length}
-                </p>
-                <p className="text-xs text-muted-foreground">Pending</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       {/* Filters */}
-      <Card>
+      <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
@@ -201,17 +193,21 @@ export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboa
 
       {/* Reports List */}
       <div className="space-y-4">
-        {filteredReports.length === 0 ? (
+        {reportsToShow.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No reports found</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                {isMyReports ? "No reports found" : "No community issues found"}
+              </h3>
               <p className="text-muted-foreground mb-4">
-                {userReports.length === 0
-                  ? "You haven't submitted any reports yet."
-                  : "No reports match your search criteria."}
+                {isMyReports 
+                  ? (userReports.length === 0
+                      ? "You haven't submitted any reports yet."
+                      : "No reports match your search criteria.")
+                  : "No community issues match your search criteria."}
               </p>
-              {userReports.length === 0 && (
+              {isMyReports && userReports.length === 0 && (
                 <Button variant="civic" onClick={() => onNavigate("report")}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Report
@@ -220,7 +216,7 @@ export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboa
             </CardContent>
           </Card>
         ) : (
-          filteredReports.map((report) => (
+          reportsToShow.map((report) => (
             <Card key={report.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex flex-col lg:flex-row gap-4">
@@ -242,6 +238,9 @@ export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboa
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-mono text-muted-foreground">#{report.id}</span>
                           <Badge variant="outline" className="text-xs">{report.category}</Badge>
+                          {!isMyReports && (
+                            <Badge variant="secondary" className="text-xs">Community</Badge>
+                          )}
                         </div>
                         <h3 className="text-lg font-semibold text-foreground">{report.title}</h3>
                       </div>
@@ -257,7 +256,7 @@ export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboa
                     </div>
 
                     <p className="text-muted-foreground text-sm line-clamp-2">
-                      {report.description}
+                      {report.description || "Description not available for community issues"}
                     </p>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-muted-foreground">
@@ -271,7 +270,7 @@ export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboa
                       </div>
                     </div>
 
-                    {report.staffComment && (
+                    {isMyReports && report.staffComment && (
                       <div className="bg-primary-light rounded-lg p-3 mt-3">
                         <p className="text-sm font-medium text-primary mb-1">Staff Update:</p>
                         <p className="text-sm text-foreground">{report.staffComment}</p>
@@ -287,6 +286,38 @@ export const CitizenDashboard = ({ reports, userId, onNavigate }: CitizenDashboa
           ))
         )}
       </div>
+    </>
+  );
+
+  return (
+    <div className="max-w-6xl mx-auto p-4 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Citizen Dashboard</h1>
+          <p className="text-muted-foreground">Track your reports and community issues</p>
+        </div>
+        <Button variant="civic" onClick={() => onNavigate("report")}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Report
+        </Button>
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="my-reports" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="my-reports">My Reports ({userReports.length})</TabsTrigger>
+          <TabsTrigger value="community">Community Issues ({communityReports.length})</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="my-reports">
+          {renderReportsList(filteredReports, true)}
+        </TabsContent>
+        
+        <TabsContent value="community">
+          {renderReportsList(communityReports, false)}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

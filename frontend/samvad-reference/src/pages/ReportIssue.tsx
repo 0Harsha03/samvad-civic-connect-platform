@@ -15,7 +15,9 @@ import {
   Sparkles
 } from "lucide-react";
 import { mockAIService, mockLocationService } from "@/services/mockData";
+import { apiService } from "@/services/apiService";
 import { Report } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 interface ReportIssueProps {
   userId: string;
@@ -33,6 +35,7 @@ export const ReportIssue = ({ userId, onReportSubmitted }: ReportIssueProps) => 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,32 +105,127 @@ export const ReportIssue = ({ userId, onReportSubmitted }: ReportIssueProps) => 
     
     setIsSubmitting(true);
     
-    // Simulate submission delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newReport: Report = {
-      id: `RPT${String(Date.now()).slice(-3)}`,
-      title: aiResult?.suggestedTitle || "New civic issue report",
-      description: description.trim(),
-      category: (aiResult?.category as Report["category"]) || "Other",
-      priority: (aiResult?.priority as Report["priority"]) || 2,
-      status: "Submitted",
-      photoUrl: photoPreview || undefined,
-      location,
-      citizenId: userId,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    onReportSubmitted(newReport);
-    
-    // Reset form
-    setDescription("");
-    setPhoto(null);
-    setPhotoPreview("");
-    setLocation(null);
-    setAiResult(null);
-    setIsSubmitting(false);
+    try {
+      let response;
+      
+      if (photo) {
+        // Use FormData for file upload
+        const formData = new FormData();
+        
+        // Add required fields
+        formData.append('title', aiResult?.suggestedTitle || 'New civic issue report');
+        formData.append('description', description.trim());
+        
+        // Map category to match backend enum
+        const category = aiResult?.category || 'Other';
+        formData.append('category', category.charAt(0).toUpperCase() + category.slice(1));
+        
+        formData.append('priority', String((aiResult?.priority as Report["priority"]) || 2));
+        
+        // Add location data - backend expects separate longitude/latitude fields
+        formData.append('longitude', String(location.lng));
+        formData.append('latitude', String(location.lat));
+        formData.append('address', location.address);
+        
+        // Add photo - backend expects 'photos' field name
+        formData.append('photos', photo);
+        
+        // Submit to backend API with FormData
+        response = await apiService.createReport(formData);
+      } else {
+        // Use regular JSON for text-only reports
+        const reportData = {
+          title: aiResult?.suggestedTitle || 'New civic issue report',
+          description: description.trim(),
+          category: (aiResult?.category || 'Other').charAt(0).toUpperCase() + (aiResult?.category || 'Other').slice(1),
+          priority: (aiResult?.priority as Report["priority"]) || 2,
+          longitude: location.lng,
+          latitude: location.lat,
+          address: location.address
+        };
+        
+        // Submit to backend API with JSON
+        const token = localStorage.getItem('authToken');
+        
+        console.log('🚀 Submitting report:', reportData);
+        console.log('🔑 Token:', token ? 'Present' : 'Missing');
+        
+        const apiResponse = await fetch(`http://localhost:5000/api/reports`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(reportData)
+        });
+        
+        console.log('📡 Response status:', apiResponse.status);
+        console.log('📡 Response ok:', apiResponse.ok);
+        
+        if (!apiResponse.ok) {
+          const errorText = await apiResponse.text();
+          console.error('❌ API Error:', errorText);
+          console.error('❌ Status:', apiResponse.status);
+          console.error('❌ Headers:', Object.fromEntries(apiResponse.headers.entries()));
+          throw new Error(`HTTP ${apiResponse.status}: ${errorText}`);
+        }
+        
+        response = await apiResponse.json();
+      }
+      
+      if (response.success && (response.data || response.report)) {
+        // Convert backend report format to frontend format
+        const reportData = response.data || response.report;
+        const newReport: Report = {
+          id: reportData._id || reportData.id,
+          title: reportData.title,
+          description: reportData.description,
+          category: reportData.category,
+          priority: reportData.priority,
+          status: reportData.status,
+          photoUrl: reportData.imageUrl || reportData.photoUrl,
+          location: {
+            lat: reportData.location?.coordinates?.[1] || location.lat,
+            lng: reportData.location?.coordinates?.[0] || location.lng,
+            address: reportData.location?.address || location.address
+          },
+          citizenId: reportData.citizenId || userId,
+          createdAt: new Date(reportData.createdAt),
+          updatedAt: new Date(reportData.updatedAt)
+        };
+        
+        onReportSubmitted(newReport);
+        
+        toast({
+          title: "Report Submitted Successfully!",
+          description: `Your report has been submitted and saved to the database.`,
+        });
+        
+        // Reset form
+        setDescription("");
+        setPhoto(null);
+        setPhotoPreview("");
+        setLocation(null);
+        setAiResult(null);
+      } else {
+        throw new Error('Failed to submit report');
+      }
+    } catch (error: any) {
+      console.error('Error submitting report:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response,
+        status: error.status
+      });
+      
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to submit report. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
