@@ -18,6 +18,9 @@ interface User {
   role: "citizen" | "staff";
 }
 
+// API base URL - use environment variable in production, fallback to localhost in development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const Index = () => {
   const [currentPage, setCurrentPage] = useState<string>("home");
   const [user, setUser] = useState<User | null>(null);
@@ -90,7 +93,7 @@ const Index = () => {
       let response;
       if (userToCheck?.role === "citizen") {
         console.log('👤 Loading reports for CITIZEN - using /my endpoint');
-        response = await fetch('http://localhost:5000/api/reports/my', {
+        response = await fetch(`${API_BASE_URL}/reports/my`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
             'Content-Type': 'application/json'
@@ -99,7 +102,7 @@ const Index = () => {
         response = await response.json();
       } else if (userToCheck?.role === "staff") {
         console.log('👮 Loading reports for STAFF - using /admin endpoint');
-        response = await fetch('http://localhost:5000/api/reports/admin', {
+        response = await fetch(`${API_BASE_URL}/reports/admin`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
             'Content-Type': 'application/json'
@@ -116,7 +119,7 @@ const Index = () => {
       if (userToCheck?.role === "citizen") {
         try {
           console.log('🏠 Loading community issues for citizen...');
-          const communityResponse = await fetch('http://localhost:5000/api/reports/community', {
+          const communityResponse = await fetch(`${API_BASE_URL}/reports/community`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
               'Content-Type': 'application/json'
@@ -133,7 +136,7 @@ const Index = () => {
               category: report.category,
               priority: report.priority,
               status: report.status,
-              photoUrl: report.photoUrl ? `http://localhost:5000${report.photoUrl}` : undefined,
+              photoUrl: report.photoUrl ? `${API_BASE_URL.replace('/api', '')}${report.photoUrl}` : undefined,
               location: {
                 lat: 0,
                 lng: 0,
@@ -161,7 +164,7 @@ const Index = () => {
           category: report.category,
           priority: report.priority,
           status: report.status,
-          photoUrl: report.photos?.[0]?.url ? `http://localhost:5000${report.photos[0].url}` : undefined,
+          photoUrl: report.photos?.[0]?.url ? `${API_BASE_URL.replace('/api', '')}${report.photos[0].url}` : undefined,
           location: {
             lat: report.location?.coordinates?.[1] || 0,
             lng: report.location?.coordinates?.[0] || 0,
@@ -243,7 +246,7 @@ const Index = () => {
     try {
       // Update report status
       if (updates.status) {
-        const statusResponse = await fetch(`http://localhost:5000/api/staff/reports/${reportId}/status`, {
+        const statusResponse = await fetch(`${API_BASE_URL}/staff/reports/${reportId}/status`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -266,7 +269,7 @@ const Index = () => {
 
       // Add staff comment if provided
       if (updates.staffComment && updates.staffComment.trim()) {
-        const commentResponse = await fetch(`http://localhost:5000/api/staff/reports/${reportId}/comment`, {
+        const commentResponse = await fetch(`${API_BASE_URL}/staff/reports/${reportId}/comment`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,

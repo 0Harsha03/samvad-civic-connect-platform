@@ -12,7 +12,7 @@ export class ApiService {
   // Test backend connection
   async testConnection(): Promise<boolean> {
     try {
-      const response = await fetch('http://localhost:5000/health', {
+      const response = await fetch(`${this.baseUrl.replace('/api', '')}/health`, {
         method: 'GET',
         timeout: 3000
       } as any);

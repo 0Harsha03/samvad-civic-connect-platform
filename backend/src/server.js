@@ -59,7 +59,13 @@ const corsOptions = {
     }
     
     // In production, add your frontend domain
-    const allowedOrigins = ['http://localhost:3000', 'http://localhost:5173'];
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://localhost:5173',
+      'http://localhost:8080',
+      process.env.FRONTEND_URL // This will be your Vercel URL
+    ].filter(Boolean); // Remove undefined values
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
